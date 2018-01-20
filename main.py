@@ -2,8 +2,10 @@
 
 from hexgridmap.geo import io, operations
 from shapely.geometry import shape
+from joblib import Memory
 
 if __name__ == "__main__":
+    mem = Memory(cachedir="/tmp/joblib")
     polys = io.loadshapefile(
         "/Users/ewannicolson/dev/papabaiden-vizforgood/data/geo/Local_Administrative_Units_Level_1_January_2018_Ultra_Generalised_Clipped_Boundaries_in_United_Kingdom.shp"
     )
@@ -21,6 +23,9 @@ if __name__ == "__main__":
             'centroid': (centroid.x, centroid.y)
         }
 
-    # neighbours = operations.findneighbours(polys, codefunction)
+    # this function takes a wee while, so cache the results
+    fn = mem.cache(operations.findneighbours)
+    neighbours = fn(polys, codefunction)
+
     objects = operations.extractobjects(polys, codefunction, objectextractor)
     extent = operations.findextent(polys)

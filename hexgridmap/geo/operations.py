@@ -25,7 +25,7 @@ def findneighbours(polys, codeextractor):
             # stick them on the defaultdict then!
             output[codeextractor(p1)].append(codeextractor(p2))
 
-    return output
+    return dict(output)
 
 
 def extractobjects(polys, codeextractor, objectextractor):
