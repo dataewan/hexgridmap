@@ -31,4 +31,7 @@ if __name__ == "__main__":
     objects = operations.extractobjects(polys, codefunction, objectextractor)
     extent = operations.findextent(polys)
 
-    h = hexgrid.Hexgrid(objects, extent, neighbours, n_x=16)
+    h = hexgrid.Hexgrid(objects, extent, neighbours, n_x=36)
+
+    h.assigninitial()
+    h.fit()
