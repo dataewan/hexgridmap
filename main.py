@@ -1,6 +1,7 @@
 """Kick off an example project"""
 
 from hexgridmap.geo import io, operations
+from hexgridmap.hexagons import hexgrid
 from shapely.geometry import shape
 from joblib import Memory
 
@@ -29,3 +30,5 @@ if __name__ == "__main__":
 
     objects = operations.extractobjects(polys, codefunction, objectextractor)
     extent = operations.findextent(polys)
+
+    h = hexgrid.Hexgrid(objects, extent, neighbours, n_x=16)

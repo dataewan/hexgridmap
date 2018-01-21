@@ -1,6 +1,7 @@
 """Geometric operations based on a hexagonal shape.
 """
 import math
+import numpy as np
 from shapely.geometry.polygon import LinearRing
 
 class Hexagon(object):
@@ -8,7 +9,7 @@ class Hexagon(object):
     """Hexagon class.
     """
 
-    def __init__(self, x, y, D, H, o_x, o_y):
+    def __init__(self, x, y, D, H, o_x, o_y, max_x, max_y):
         """x, y, w, h, o_x, o_y
         Args:
             x (int): x grid coordinate
@@ -17,6 +18,8 @@ class Hexagon(object):
             H (float): height of a hexagon
             o_x (float): grid origin x coordinate
             o_y (float): grid origin y coordinate
+            max_x (int): grid maximum x coordinate
+            max_y (int): grid maximum y coordinate
         """
         self.x = x
         self.y = y
@@ -24,6 +27,8 @@ class Hexagon(object):
         self.H = H
         self.o_x = o_x
         self.o_y = o_y
+        self.max_x = max_x
+        self.max_y = max_y
 
         # the odd columns are offset up, precalculate this.
         self.oddcolumn = x % 2 == 1
@@ -109,7 +114,7 @@ class Hexagon(object):
         x = self.x
         y = self.y
         if self.oddcolumn:
-            return [
+            neighbours = [
                 (x + 0, y + 1),
                 (x + 1, y + 1),
                 (x + 1, y + 0),
@@ -118,7 +123,7 @@ class Hexagon(object):
                 (x - 1, y + 1),
             ]
         else:
-            return [
+            neighbours = [
                 (x + 0, y + 1),
                 (x + 1, y + 0),
                 (x + 1, y - 1),
@@ -126,3 +131,28 @@ class Hexagon(object):
                 (x - 1, y - 1),
                 (x - 1, y + 0),
             ]
+
+        # need to trim the neighbours so they don't go outside the grid
+        def checkneighbour(hexagon):
+            return hexagon[0] >= 0 and \
+                hexagon[0] < self.max_x and \
+                hexagon[1] >= 0 and \
+                hexagon[1] < self.max_y
+
+        return list(filter(checkneighbour, neighbours))
+
+    def distance_to_point(self, point):
+        """Return the distance to a given point.
+
+        Args:
+            point (tuple): geometric coordinates of point
+
+        Returns: 
+            (float): euclidean distance from centre of this hex to the point
+
+        """
+        centre = self.to_geographic()
+        return np.sqrt(
+            (point[0] - centre[0])**2 + 
+            (point[1] - centre[1])**2 
+        )

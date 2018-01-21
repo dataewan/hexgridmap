@@ -2,6 +2,8 @@
 """
 
 import numpy as np
+import random
+import copy
 from scipy.spatial import KDTree
 from . import hexagon
 
@@ -147,7 +149,9 @@ class Hexgrid(object):
             for y in range(self.n_y):
                 self.grid[(x, y)] = hexagon.Hexagon(x, y, self.D, self.H,
                                                     self.extent['min_x'],
-                                                    self.extent['min_y'])
+                                                    self.extent['min_y'],
+                                                    self.n_x,
+                                                    self.n_y)
 
     def fit(self):
         """Assign the geographic objects to the grid, optimise their placement.
@@ -158,6 +162,15 @@ class Hexgrid(object):
         aren't. Move things around as needed.
         """
         self.assigninitial()
+
+        overlaps = self.findoverlaps()
+        while len(overlaps) > 0:
+            print(len(overlaps))
+            gridref_tofix = random.choice(overlaps)
+            fix = self.fixoverlap(gridref_tofix)[0]
+            chain = fix['swaps']
+            self.applychain(chain)
+            overlaps = self.findoverlaps()
 
     def assigninitial(self):
         """Find an initial point for all the geographic objects.
@@ -174,4 +187,141 @@ class Hexgrid(object):
 
         self.assignment = {}
         for code, geoobject in self.objects.items():
-            self.assignment[code] = gridcoords[kdt.query(geoobject['centroid'])[1]]
+            # assign the code to the grid coordinate closest to the centroid
+            self.assignment[code] = gridcoords[
+                kdt.query(geoobject['centroid'])[1]
+            ]
+
+    def findoverlaps(self):
+        """Find any points on the grid that have multiple hexes assigned.
+
+        Returns:
+            (list): contianing tuples of overlapping assignments.
+        """
+        assignments = list(self.assignment.values())
+        overlaps = list(set([x for x in assignments 
+                             if assignments.count(x) > 1]))
+        return overlaps
+
+    def fixoverlap(self, gridref):
+        """Find a reassignment for a code at hex gridref.
+
+        Args:
+            gridref (tuple): grid coordinates of hex containing multiple
+                assignments.
+        """
+        startcode = np.random.choice(
+            [k for k, v in self.assignment.items() if v == gridref]
+        )
+
+        def findswap(code, previousgridref, nextgridref, swaps, distance,
+                     alreadychecked):
+            """Which chain of swaps should we do?
+
+            Recursive function. Calculates all the chains that move one code
+            from a hex to a neighbouring hex.
+
+            Args:
+                code (str): code that we're trying to swap
+                previousgridref (tuple): x and y coordinates of the gridref to
+                    swap from.
+                gridref (tuple): x and y coordinates of the gridref to check
+                swaps (list): list of movements performed
+                distance (float): increase in distance from true positions
+                    we've caused by doing these swaps.
+                alreadychecked (set): grid references that have already been
+                    checked
+            """
+            # is the place we're trying to swap to empty?
+            isempty = nextgridref not in self.assignment.values()
+            # the object we're considering
+            centroid = self.objects[code]['centroid']
+
+            # find how much overall displacement we're making
+            previousdistance = self.grid[previousgridref].distance_to_point(
+                centroid
+            )
+            newdistance = self.grid[nextgridref].distance_to_point(
+                centroid
+            )
+            updateddistance = distance + newdistance - previousdistance
+
+            # update the list of codes to swap with moving this code to the
+            # nextgridref
+            newswaps = copy.deepcopy(swaps) + [(code, nextgridref)]
+
+            # exclude these points from the set of points to check next time.
+            alreadychecked.add(nextgridref)
+            alreadychecked.add(previousgridref)
+
+            if isempty:
+                # we're done, and can return the end of the chain.
+                return(
+                    {
+                        'distance': updateddistance,
+                        'swaps': newswaps
+                    }
+                )
+            else:
+                # we've swapped one in, we need to swap one out
+                codetocheck = np.random.choice(
+                    [
+                        k for k, v in self.assignment.items()
+                        if v == nextgridref
+                    ]
+                )
+
+                # these are all the neighbours that haven't already been
+                # checked.
+                to_check = [
+                    i for i in
+                    self.grid[nextgridref].find_neighbours()
+                    if i not in alreadychecked
+                ]
+                return [
+                    findswap(
+                        codetocheck,
+                        nextgridref,
+                        i,
+                        newswaps,
+                        updateddistance,
+                        alreadychecked
+                    )
+                    for i in to_check
+                ]
+
+        def flatten(container):
+            for i in container:
+                if isinstance(i, (list, tuple)):
+                    for j in flatten(i):
+                        yield j
+                else:
+                    yield i
+
+        # initiate the recursion
+        swaps = []
+        distance = 0
+        alreadychecked = set(gridref)
+        chains = list(flatten([
+            findswap(
+                startcode,
+                gridref,
+                i,
+                swaps,
+                distance,
+                alreadychecked
+            )
+            for i in self.grid[gridref].find_neighbours()
+        ]))
+
+        return min(chains, key=lambda x: x['distance']), chains
+
+    def applychain(self, chain):
+        """Perform the swaps described in chain.
+
+        Args:
+            chain (list): list of swaps from above
+
+        """
+        for swap in chain:
+            self.assignment[swap[0]] = swap[1]

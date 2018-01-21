@@ -2,3 +2,4 @@ Fiona==1.7.11
 Shapely==1.6.3
 tqdm==4.19.5
 joblib==0.11
+scipy==1.0.0
