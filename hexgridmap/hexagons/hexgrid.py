@@ -167,10 +167,17 @@ class Hexgrid(object):
         while len(overlaps) > 0:
             print(len(overlaps))
             gridref_tofix = random.choice(overlaps)
-            fix = self.fixoverlap(gridref_tofix)[0]
-            chain = fix['swaps']
-            self.applychain(chain)
-            overlaps = self.findoverlaps()
+            fix = self.fixoverlap(gridref_tofix)
+            if fix is not None:
+                chain = fix[0]['swaps']
+                self.applychain(chain)
+                overlaps = self.findoverlaps()
+            else:
+                print(
+                    'Failed to find a fix for this one {}'.format(
+                        gridref_tofix
+                    )
+                )
 
     def assigninitial(self):
         """Find an initial point for all the geographic objects.
@@ -314,7 +321,10 @@ class Hexgrid(object):
             for i in self.grid[gridref].find_neighbours()
         ]))
 
-        return min(chains, key=lambda x: x['distance']), chains
+        if len(chains) > 0:
+            return min(chains, key=lambda x: x['distance']), chains
+        else:
+            return None
 
     def applychain(self, chain):
         """Perform the swaps described in chain.
