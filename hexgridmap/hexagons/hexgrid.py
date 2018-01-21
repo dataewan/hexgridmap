@@ -2,6 +2,9 @@
 """
 
 import numpy as np
+from scipy.spatial import KDTree
+from . import hexagon
+
 
 class Hexgrid(object):
 
@@ -40,6 +43,9 @@ class Hexgrid(object):
 
         if n_x is not None and n_x % 2 != 0:
             raise ValueError("n_x needs to be even number.")
+
+        self.calculategriddimensions()
+        self.creategrid()
 
     def calculategriddimensions(self):
         """Calculate the size of grid needed.
@@ -132,3 +138,40 @@ class Hexgrid(object):
             # of x hexes.
             if self.n_x % 2 == 1:
                 self.n_x += 1
+
+    def creategrid(self):
+        """Form the grid object.
+        """
+        self.grid = {}
+        for x in range(self.n_x):
+            for y in range(self.n_y):
+                self.grid[(x, y)] = hexagon.Hexagon(x, y, self.D, self.H,
+                                                    self.extent['min_x'],
+                                                    self.extent['min_y'])
+
+    def fit(self):
+        """Assign the geographic objects to the grid, optimise their placement.
+
+            First start by giving all objects an initial position close to
+        their correct point.
+            Then check for overlaps and points that should be neighbouring that
+        aren't. Move things around as needed.
+        """
+        self.assigninitial()
+
+    def assigninitial(self):
+        """Find an initial point for all the geographic objects.
+
+        For each centroid, find the nearest neighbour in the hexgrid
+        coordinates.
+        """
+        hexcentres = np.array([
+            h.to_geographic() for h in self.grid.values()
+        ])
+        gridcoords = list(self.grid.keys())
+
+        kdt = KDTree(hexcentres)
+
+        self.assignment = {}
+        for code, geoobject in self.objects.items():
+            self.assignment[code] = gridcoords[kdt.query(geoobject['centroid'])[1]]
