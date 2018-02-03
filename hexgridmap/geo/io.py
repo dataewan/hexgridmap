@@ -40,6 +40,13 @@ def to_geojson(hexgrid, filename):
     polygons = [
         to_polygon(code) for code in hexgrid.assignment.keys()
     ]
-    collection = geojson.GeometryCollection(polygons)
+    bbox = [
+        hexgrid.extent['min_x'],
+        hexgrid.extent['min_y'],
+        hexgrid.extent['max_x'],
+        hexgrid.extent['max_y'],
+    ]
+    collection = geojson.GeometryCollection(polygons, bbox=bbox)
+
     with open(filename, 'w') as f:
         geojson.dump(collection, f, sort_keys=True)

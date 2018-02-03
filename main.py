@@ -1,15 +1,19 @@
-"""Kick off an example project"""
+"""Kick off an example project.
+
+Usage:
+
+    python main.py [[PATH OF SHAPEFILE]]
+"""
 
 from hexgridmap.geo import io, operations
 from hexgridmap.hexagons import hexgrid
 from shapely.geometry import shape
 from joblib import Memory
+import sys
 
 if __name__ == "__main__":
     mem = Memory(cachedir="/tmp/joblib")
-    polys = io.loadshapefile(
-        "/Users/ewannicolson/dev/papabaiden-vizforgood/data/geo/Local_Administrative_Units_Level_1_January_2018_Ultra_Generalised_Clipped_Boundaries_in_United_Kingdom.shp"
-    )
+    polys = io.loadshapefile(sys.argv[1])
 
     def codefunction(x):
         return x['properties']['lau118cd']
@@ -35,3 +39,5 @@ if __name__ == "__main__":
 
     h.assigninitial()
     h.fit()
+
+    io.to_geojson(h, './example/hexes.json')
