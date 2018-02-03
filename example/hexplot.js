@@ -1,3 +1,40 @@
+const LAHNDAHN = [
+  'City of London',
+  'Barking and Dagenham',
+  'Barnet',
+  'Bexley',
+  'Brent ',
+  'Bromley',
+  'Camden',
+  'Croydon',
+  'Ealing',
+  'Enfield',
+  'Greenwich',
+  'Hackney ',
+  'Hammersmith and Fulham ',
+  'Haringey',
+  'Harrow',
+  'Havering',
+  'Hillingdon',
+  'Hounslow',
+  'Islington',
+  'Kensington and Chelsea',
+  'Kingston upon Thames',
+  'Lambeth ',
+  'Lewisham ',
+  'Merton',
+  'Newham ',
+  'Redbridge',
+  'Richmond upon Thames',
+  'Southwark',
+  'Sutton',
+  'Tower Hamlets',
+  'Waltham Forest',
+  'Wandsworth',
+  'Westminster',
+]
+
+
 const getdimensions = (bbox, width) => {
   /* calculate the correct dimensions in both real world and pixel coordinates
    * bbox: list containing the dimensions of the bounding box
@@ -64,7 +101,12 @@ const plothexes = (data, svgelement, scales) => {
       return coords.map(g => [scales.xscale(g[0]), scales.yscale(g[1])].join(',')
       ).join(' ')
     })
-    .attr('fill', (d, i) => scheme[i % 20])
+    .attr('fill', (d, i) => {
+      if (LAHNDAHN.indexOf(d.properties.name) != -1){
+        return 'red'
+      }
+      return scheme[i % 20]
+    })
     .attr('stroke-width', 0.5)
     .attr('stroke', 'white')
     .on('mouseover', d => console.log(d.properties.name))
