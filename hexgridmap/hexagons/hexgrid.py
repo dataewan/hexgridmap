@@ -14,7 +14,8 @@ class Hexgrid(object):
     area.
     """
 
-    def __init__(self, objects, extent, neighbours, n_x=None, n_y=None):
+    def __init__(self, objects, extent, neighbours, n_x=None, n_y=None,
+                 padding=None):
         """
         Args:
             objects (dict): extracted geographic objects. Key is the code of
@@ -28,6 +29,8 @@ class Hexgrid(object):
                 If set this needs to be an even number.
             n_y (int): number of hexagons needed in the y axis.
                 Have to set this _or_ n_x.
+            padding (dict): dictionary containing any padding that I want to
+                apply to the grid.
 
         """
         self.objects = objects
@@ -35,6 +38,7 @@ class Hexgrid(object):
         self.neighbours = neighbours
         self.n_x = n_x
         self.n_y = n_y
+        self.padding = padding
 
         # check that either x or y number of hexes is set.
         if n_x is None and n_y is None:
@@ -46,8 +50,18 @@ class Hexgrid(object):
         if n_x is not None and n_x % 2 != 0:
             raise ValueError("n_x needs to be even number.")
 
+        if self.padding is not None:
+            self.applypadding()
+
         self.calculategriddimensions()
         self.creategrid()
+
+    def applypadding(self):
+        """Apply an adjustment to the grid to make it a nicer fit.
+        """
+        for component in ['min_x', 'max_x', 'min_y', 'max_y']:
+            if component in self.padding:
+                self.extent[component] += self.padding[component]
 
     def calculategriddimensions(self):
         """Calculate the size of grid needed.
@@ -152,6 +166,7 @@ class Hexgrid(object):
                                                     self.extent['min_y'],
                                                     self.n_x,
                                                     self.n_y)
+        self.extent['max_x'] += self.D
 
     def fit(self):
         """Assign the geographic objects to the grid, optimise their placement.
@@ -206,7 +221,7 @@ class Hexgrid(object):
             (list): contianing tuples of overlapping assignments.
         """
         assignments = list(self.assignment.values())
-        overlaps = list(set([x for x in assignments 
+        overlaps = list(set([x for x in assignments
                              if assignments.count(x) > 1]))
         return overlaps
 
