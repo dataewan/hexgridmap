@@ -3,7 +3,6 @@
 
 import numpy as np
 import random
-import copy
 from scipy.spatial import KDTree
 import itertools
 from . import hexagon
@@ -301,7 +300,7 @@ class Hexgrid(object):
 
             # update the list of codes to swap with moving this code to the
             # nextgridref
-            newswaps = copy.deepcopy(swaps) + [(code, nextgridref)]
+            newswaps = list(swaps) + [(code, nextgridref)]
 
             # exclude these points from the set of points to check next time.
             alreadychecked.add(nextgridref)
