@@ -5,6 +5,7 @@ import numpy as np
 import random
 import copy
 from scipy.spatial import KDTree
+import itertools
 from . import hexagon
 
 
@@ -179,9 +180,18 @@ class Hexgrid(object):
         self.assigninitial()
 
         overlaps = self.findoverlaps()
-        while len(overlaps) > 0:
-            print(len(overlaps))
-            gridref_tofix = random.choice(overlaps)
+
+        def getoverlapped(x):
+            """
+            """
+            return len([
+                i for i in overlaps.values()
+                if i > 1
+            ])
+
+        while getoverlapped(overlaps) > 0:
+            print(getoverlapped(overlaps))
+            gridref_tofix = self.findmostoverlapped(overlaps)
             fix = self.fixoverlap(gridref_tofix)
             if fix is not None:
                 chain = fix[0]['swaps']
@@ -218,12 +228,33 @@ class Hexgrid(object):
         """Find any points on the grid that have multiple hexes assigned.
 
         Returns:
-            (list): contianing tuples of overlapping assignments.
+            (dict): {gridreference: number of assignments}
         """
         assignments = list(self.assignment.values())
-        overlaps = list(set([x for x in assignments
-                             if assignments.count(x) > 1]))
+        assignments.sort()
+        overlaps = {
+            k: sum([1 for _ in g])
+            for k, g in itertools.groupby(assignments)
+        }
         return overlaps
+
+    def findmostoverlapped(self, overlap):
+        """Find a gridreference from the overlaps to fix.
+
+        Pick the most overlapped grid reference, a random one from the set if
+        multiple have the same number of overlaps.
+
+        Args:
+            overlap (dict): {gridreference: numberofassignments}
+
+        Returns: (tuple): gridreference to fix
+
+        """
+        mostoverlapped = [
+            k for k, v in overlap.items()
+            if v == max(overlap.values())
+        ]
+        return random.choice(mostoverlapped)
 
     def fixoverlap(self, gridref):
         """Find a reassignment for a code at hex gridref.
