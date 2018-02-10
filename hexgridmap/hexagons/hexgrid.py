@@ -6,6 +6,7 @@ import random
 from scipy.spatial import KDTree
 import itertools
 from . import hexagon
+from ..geo import operations
 
 
 class Hexgrid(object):
@@ -182,19 +183,20 @@ class Hexgrid(object):
 
         def getoverlapped(x):
             """
+            Find grid references that have multiple assigments.
             """
             return len([
                 i for i in overlaps.values()
                 if i > 1
             ])
 
+
         while getoverlapped(overlaps) > 0:
             print(getoverlapped(overlaps))
             gridref_tofix = self.findmostoverlapped(overlaps)
             fix = self.fixoverlap(gridref_tofix)
             if fix is not None:
-                chain = fix[0]['swaps']
-                self.applychain(chain)
+                self.applychain(fix)
                 overlaps = self.findoverlaps()
             else:
                 print(
@@ -262,12 +264,7 @@ class Hexgrid(object):
             gridref (tuple): grid coordinates of hex containing multiple
                 assignments.
         """
-        startcode = np.random.choice(
-            [k for k, v in self.assignment.items() if v == gridref]
-        )
-
-        def findswap(code, previousgridref, nextgridref, swaps, distance,
-                     alreadychecked):
+        def findswap(code, previousgridref, nextgridref, swaps, alreadymoved):
             """Which chain of swaps should we do?
 
             Recursive function. Calculates all the chains that move one code
@@ -277,99 +274,86 @@ class Hexgrid(object):
                 code (str): code that we're trying to swap
                 previousgridref (tuple): x and y coordinates of the gridref to
                     swap from.
-                gridref (tuple): x and y coordinates of the gridref to check
+                nextgridref (tuple): x and y coordinates of the gridref to
+                    check if we can move to
                 swaps (list): list of movements performed
-                distance (float): increase in distance from true positions
-                    we've caused by doing these swaps.
-                alreadychecked (set): grid references that have already been
-                    checked
+                alreadymoved (list): list containing the codes that have
+                    already moved in this chain
             """
+            # add the code to the list of codes that have already been moved
+            alreadymoved.append(code)
             # is the place we're trying to swap to empty?
             isempty = nextgridref not in self.assignment.values()
-            # the object we're considering
-            centroid = self.objects[code]['centroid']
-
-            # find how much overall displacement we're making
-            previousdistance = self.grid[previousgridref].distance_to_point(
-                centroid
-            )
-            newdistance = self.grid[nextgridref].distance_to_point(
-                centroid
-            )
-            updateddistance = distance + newdistance - previousdistance
 
             # update the list of codes to swap with moving this code to the
             # nextgridref
             newswaps = list(swaps) + [(code, nextgridref)]
 
-            # exclude these points from the set of points to check next time.
-            alreadychecked.add(nextgridref)
-            alreadychecked.add(previousgridref)
-
             if isempty:
                 # we're done, and can return the end of the chain.
-                return(
-                    {
-                        'distance': updateddistance,
-                        'swaps': newswaps
-                    }
-                )
+                return newswaps
             else:
-                # we've swapped one in, we need to swap one out
-                codetocheck = np.random.choice(
-                    [
-                        k for k, v in self.assignment.items()
-                        if v == nextgridref
-                    ]
-                )
-
-                # these are all the neighbours that haven't already been
-                # checked.
-                to_check = [
-                    i for i in
-                    self.grid[nextgridref].find_neighbours()
-                    if i not in alreadychecked
+                codestomove = [
+                    k for k, v in self.assignment.items()
+                    if v == nextgridref
+                    and k not in alreadymoved
                 ]
-                return [
-                    findswap(
-                        codetocheck,
-                        nextgridref,
-                        i,
-                        newswaps,
-                        updateddistance,
-                        alreadychecked
+                pusherobject = self.objects[code]
+
+                angles = [
+                    {
+                        'code': c,
+                        'angle': operations.anglebetween(pusherobject['centroid'], self.objects[c]['centroid'])
+                    }
+                    for c in codestomove
+                ]
+
+                # HERE IS WHERE I AM
+                # i need to start moving these codes out from this hex
+                # start moving the furthest one first? or doesn't that matter?
+                # pop them all out and then get the next one in the chain to do that as well.
+                hexagon = self.grid[nextgridref]
+                chains = []
+                for a in angles:
+                    chains.extend(
+                        findswap(
+                            a['code'],
+                            nextgridref,
+                            hexagon.find_neighbour_in_direction(a['angle']),
+                            newswaps,
+                            alreadymoved
+                        )
                     )
-                    for i in to_check
-                ]
 
-        def flatten(container):
-            for i in container:
-                if isinstance(i, (list, tuple)):
-                    for j in flatten(i):
-                        yield j
-                else:
-                    yield i
+                return chains
 
         # initiate the recursion
+        # find the outermost point in this hex
+        gridref_hex = self.grid[gridref]
+        objects_in_hex = [k for k, v in self.assignment.items()
+                          if v == gridref]
+
+        distances = [
+            (code, gridref_hex.distance_to_point(self.objects[code]['centroid']))
+            for code in objects_in_hex
+        ]
+        startcode = max(distances, key=lambda x: x[1])[0]
+
+        # Which angle should I move it in?
+        angle_to_move = operations.anglebetween(gridref_hex.to_geographic(), self.objects[startcode]['centroid'])
+
+        # Which hex is that?
+        grid_to_move_to = gridref_hex.find_neighbour_in_direction(angle_to_move)
         swaps = []
-        distance = 0
-        alreadychecked = set(gridref)
-        chains = list(flatten([
-            findswap(
+        alreadymoved = []
+        chains = findswap(
                 startcode,
                 gridref,
-                i,
+                grid_to_move_to,
                 swaps,
-                distance,
-                alreadychecked
+                alreadymoved
             )
-            for i in self.grid[gridref].find_neighbours()
-        ]))
-
-        if len(chains) > 0:
-            return min(chains, key=lambda x: x['distance']), chains
-        else:
-            return None
+        return chains
 
     def applychain(self, chain):
         """Perform the swaps described in chain.

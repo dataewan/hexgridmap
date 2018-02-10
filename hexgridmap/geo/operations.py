@@ -1,6 +1,7 @@
 """Functions that perform operations on the polygon objects."""
 
 from shapely.geometry import shape
+import math
 import itertools
 from collections import defaultdict
 from numpy import array
@@ -26,6 +27,23 @@ def findneighbours(polys, codeextractor):
             output[codeextractor(p1)].append(codeextractor(p2))
 
     return dict(output)
+
+
+def anglebetween(p1, p2):
+    """Find the angle between two points, relative to the cartesian
+    coordinates, as if point 1 was pushing point 2.
+
+    Args:
+        p1 (tuple): x, y coordinates of point1
+        p2 (tuple): x, y coordinates of point2
+
+    Returns: (float) angle in degrees between the two points.
+
+    """
+    return math.atan2(
+        p2[0] - p1[0],
+        p2[1] - p1[1]
+    ) * 180 / math.pi
 
 
 def extractobjects(polys, codeextractor, objectextractor):

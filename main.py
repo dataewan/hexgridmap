@@ -41,4 +41,4 @@ if __name__ == "__main__":
     h.assigninitial()
     h.fit()
 
-    io.to_geojson(h, './example/hexes.json')
+    # io.to_geojson(h, './example/hexes.json')

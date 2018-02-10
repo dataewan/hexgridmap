@@ -4,6 +4,7 @@ import math
 import numpy as np
 from shapely.geometry.polygon import LinearRing
 
+
 class Hexagon(object):
 
     """Hexagon class.
@@ -140,6 +141,44 @@ class Hexagon(object):
                 hexagon[1] < self.max_y
 
         return list(filter(checkneighbour, neighbours))
+
+    def find_neighbour_in_direction(self, angle, sd=10):
+        """Find the neighbour if you take the centre of this point and draw a
+        line at an angle from it
+
+        Args:
+            angle (float): angle in degrees
+
+        Returns: (tuple): grid ref of neighbour
+
+        """
+        if self.oddcolumn:
+            angles = [
+                [30, (0, 1)],
+                [90, (1, 1)],
+                [150, (1, 0)],
+                [210, (0, -1)],
+                [270, (-1, 0)],
+                [330, (-1, 1)],
+                [361, (0, 1)],
+            ]
+        else:
+            angles = [
+                [30, (0, 1)],
+                [90, (1, 0)],
+                [150, (1, -1)],
+                [210, (0, -1)],
+                [270, (-1, -1)],
+                [330, (-1, 0)],
+                [361, (0, 1)],
+            ]
+
+        d = np.random.normal(0, sd)
+
+        for a in angles:
+            if (angle + d) <= a[0]:
+                return (self.x + a[1][0], self.y + a[1][1])
+
 
     def distance_to_point(self, point):
         """Return the distance to a given point.
